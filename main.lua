@@ -31,16 +31,41 @@ function Hello:init()
 end
 
 function Hello:addToMainMenu(menu_items)
-  menu_items.hello_world = {
+  menu_items.org_capture = {
     text = _("Capture"),
-    -- in which menu this should be appended
     sorting_hint = "more_tools",
-    -- a callback when tapping
-    callback = function()
-      UIManager:show(InfoMessage:new {
-        text = _("Hello, plugin world"),
-      })
-    end,
+    keep_menu_open = true,
+    sub_item_table = {
+      {
+        text = _("About Capture"),
+        keep_menu_open = true,
+      },
+      {
+        text = _("Capture Templates"),
+        keep_menu_open = true,
+        callback = function()
+          print("TODO: list capture templats as well as allowing to edit and add new ones")
+        end,
+        separator = true
+      },
+      {
+        text = _("Per Book or One File"),
+        keep_menu_open = true,
+        callback = function()
+          -- if the user selects per book the following options changes to select folder
+          --   also allow naming of the file with format string
+          -- if One file is selected changes to select file
+          --   also allow naming of the file without format string
+        end
+      },
+      {
+        text = _("Select Folder"),
+        keep_menu_open = true,
+        callback = function()
+          print("TODO: prompt folder selector")
+        end
+      },
+    }
   }
 end
 
@@ -74,27 +99,15 @@ function Hello:addToHighlightDialog()
           fullscreen = true,
           cursor_at_end = true,
           add_nav_bar = true,
-          buttons = {
-            {
-              {
-                text = _("Cancel"),
-                callback = function()
-                  UIManager:close(dialog)
-                end,
-              },
-              {
-                text = _("Save"),
-                is_enter_default = true,
-                callback = function()
-                  local final_text = dialog:getInputText()
-                  UIManager:close(dialog)
-                  UIManager:show(InfoMessage:new {
-                    text = _("Captured:\n") .. final_text:sub(1, 200),
-                  })
-                end,
-              },
-            },
-          }
+          save_callback = function(content, closing)
+            if closing then
+              UIManager:nextTick(
+              -- Stuff to do when InputDialog is closed, if anything.
+              )
+            end
+            -- TODO: write `content` to org file
+            return true, "Highlight captured sucessfully"
+          end
         }
 
         UIManager:show(dialog)
