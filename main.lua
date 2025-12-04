@@ -2,29 +2,33 @@
 This is a debug plugin to test Plugin functionality.
 
 @module koplugin.Capture
---]]                                     --
+--]] --
 
-local Dispatcher = require("dispatcher") -- luacheck:ignore
-local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
+local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local _ = require("gettext")
 local ffiUtil = require("ffi/util")
 local T = ffiUtil.template
+local GS = G_reader_settings
+local DataStorage = require("datastorage")
 
-local Hello = WidgetContainer:extend {
+local OrgCapture = WidgetContainer:extend {
   name = "hello",
   is_doc_only = false,
 }
 
-function Hello:onDispatcherRegisterActions()
-  Dispatcher:registerAction("helloworld_action",
-    { category = "none", event = "HelloWorld", title = _("Hello World"), general = true, })
+local function default_setting()
+  return {
+    strategy = "Unified",
+    folder = DataStorage:getFullDataDir() .. "/org"
+  }
 end
 
-function Hello:init()
-  self:onDispatcherRegisterActions()
+function OrgCapture:init()
+  self.settings = GS:readSetting("org-capture") or default_setting()
+
   self.ui.menu:registerToMainMenu(self)
 
   if self.ui.highlight then
@@ -32,7 +36,12 @@ function Hello:init()
   end
 end
 
-function Hello:addToMainMenu(menu_items)
+function OrgCapture:saveSetting(setting, value)
+  self.settings[setting] = value
+  GS:saveSetting("org-capture", self.settings)
+end
+
+function OrgCapture:addToMainMenu(menu_items)
   menu_items.org_capture = {
     text = _("Capture"),
     sorting_hint = "more_tools",
@@ -53,7 +62,7 @@ function Hello:addToMainMenu(menu_items)
       {
         text_func = function()
           return T(_("Capture Strategy: %1"),
-            G_reader_settings:readSetting("org_capture_strategy", "Unified"))
+            self.settings.strategy)
         end,
 
         keep_menu_open = true,
@@ -62,33 +71,44 @@ function Hello:addToMainMenu(menu_items)
             text = _("Unified"),
             radio = true,
             checked_func = function()
-              return G_reader_settings:readSetting("org_capture_strategy", {}) == "Unified"
+              return self.settings.strategy == "Unified"
             end,
-            callback = function() G_reader_settings:saveSetting("org_capture_strategy", "Unified") end,
+            callback = function()
+              self:saveSetting("strategy", "Unified")
+            end,
           },
           {
             text = _("Per Book"),
             radio = true,
             keep_menu_open = true,
             checked_func = function()
-              return G_reader_settings:readSetting("org_capture_strategy", {}) == "Per Book"
+              return self.settings.strategy == "Per Book"
             end,
-            callback = function() G_reader_settings:saveSetting("org_capture_strategy", "Per Book") end,
+            callback = function()
+              self:saveSetting("strategy", "Per Book")
+            end,
           }
         }
       },
       {
-        text = _("Select Folder"),
+        text = "Select Folder",
         keep_menu_open = true,
         callback = function()
-          print("TODO: prompt folder selector")
+          local current_path = self.settings.folder
+
+          filemanagerutil.showChooseDialog("Current Capture Folder", function(path)
+              self:saveSetting("folder", path)
+            end,
+            current_path,
+            DataStorage:getFullDataDir() .. "/org",
+            nil)
         end
-      },
+      }
     }
   }
 end
 
-function Hello:addToHighlightDialog()
+function OrgCapture:addToHighlightDialog()
   self.ui.highlight:addToHighlightDialog("13_capture_default", function(this)
     return {
       text = _("Capture (Org)"),
@@ -136,11 +156,4 @@ function Hello:addToHighlightDialog()
   end)
 end
 
-function Hello:onHelloWorld()
-  local popup = InfoMessage:new {
-    text = _("Hello World"),
-  }
-  UIManager:show(popup)
-end
-
-return Hello
+return OrgCapture
