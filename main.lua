@@ -10,6 +10,8 @@ local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
 local _ = require("gettext")
+local ffiUtil = require("ffi/util")
+local T = ffiUtil.template
 
 local Hello = WidgetContainer:extend {
   name = "hello",
@@ -49,14 +51,31 @@ function Hello:addToMainMenu(menu_items)
         separator = true
       },
       {
-        text = _("Per Book or One File"),
+        text_func = function()
+          return T(_("Capture Strategy: %1"),
+            G_reader_settings:readSetting("org_capture_strategy", "Unified"))
+        end,
+
         keep_menu_open = true,
-        callback = function()
-          -- if the user selects per book the following options changes to select folder
-          --   also allow naming of the file with format string
-          -- if One file is selected changes to select file
-          --   also allow naming of the file without format string
-        end
+        sub_item_table = {
+          {
+            text = _("Unified"),
+            radio = true,
+            checked_func = function()
+              return G_reader_settings:readSetting("org_capture_strategy", {}) == "Unified"
+            end,
+            callback = function() G_reader_settings:saveSetting("org_capture_strategy", "Unified") end,
+          },
+          {
+            text = _("Per Book"),
+            radio = true,
+            keep_menu_open = true,
+            checked_func = function()
+              return G_reader_settings:readSetting("org_capture_strategy", {}) == "Per Book"
+            end,
+            callback = function() G_reader_settings:saveSetting("org_capture_strategy", "Per Book") end,
+          }
+        }
       },
       {
         text = _("Select Folder"),
