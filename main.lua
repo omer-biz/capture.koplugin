@@ -1,5 +1,5 @@
 --[[--
-This is a debug plugin to test Plugin functionality.
+Org Captrue inside koreader
 
 @module koplugin.Capture
 --]] --
