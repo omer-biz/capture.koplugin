@@ -13,6 +13,8 @@ local ffiUtil = require("ffi/util")
 local T = ffiUtil.template
 local GS = G_reader_settings
 local DataStorage = require("datastorage")
+local DocSettings = require("docsettings")
+local Util = require("util")
 
 local OrgCapture = WidgetContainer:extend {
   name = "hello",
@@ -26,19 +28,52 @@ local function default_setting()
   }
 end
 
+function OrgCapture:loadSettings()
+  if not self.ui.document or not self.ui.document.file then return end
+  self.settings = default_setting()
+
+  local global_settings = GS:readSetting("orgcapture")
+  if global_settings ~= nil then
+    Util.tableMerge(self.settings, GS:readSetting())
+  end
+
+  local doc_settings = DocSettings:open(self.ui.document.file)
+  local local_settings = doc_settings:readSetting("orgcapture")
+  if local_settings ~= nil then
+    Util.tableMerge(self.settings, doc_settings:readSetting("orgcapture"))
+  end
+end
+
+function OrgCapture:saveLocalSetting(key, value)
+  if not self.ui.document or not self.ui.document.file then return end
+
+  self.settings[key] = value
+
+  local doc_settings = DocSettings:open(self.ui.document.file)
+  local saved_local = doc_settings:readSetting("orgcapture") or {}
+  saved_local[key] = value
+
+  doc_settings:saveSetting("orgcapture", saved_local)
+  doc_settings:flush()
+end
+
+function OrgCapture:saveGlobalSetting(key, value)
+  self.settings[key] = value
+  local saved_global = GS:readSetting("orgcapture") or {}
+
+  saved_global[key] = value
+  GS:saveSetting("orgcapture", saved_global)
+  GS:flush()
+end
+
 function OrgCapture:init()
-  self.settings = GS:readSetting("org-capture") or default_setting()
+  self:loadSettings()
 
   self.ui.menu:registerToMainMenu(self)
 
   if self.ui.highlight then
     self:addToHighlightDialog()
   end
-end
-
-function OrgCapture:saveSetting(setting, value)
-  self.settings[setting] = value
-  GS:saveSetting("org-capture", self.settings)
 end
 
 function OrgCapture:addToMainMenu(menu_items)
@@ -97,7 +132,7 @@ function OrgCapture:addToMainMenu(menu_items)
           local current_path = self.settings.folder
 
           filemanagerutil.showChooseDialog("Current Capture Folder", function(path)
-              self:saveSetting("folder", path)
+              self:saveLocalSetting("folder", path)
             end,
             current_path,
             DataStorage:getFullDataDir() .. "/org",
