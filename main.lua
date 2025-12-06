@@ -106,10 +106,11 @@ function OrgCapture:templateEditor(template)
 
   input_dialog = InputDialog:new {
     title = T(_("Edit: %1"), template.name),
-    input = Util.readFromFile(template.path) or "",
+    input = "",
     allow_newline = true,
     fullscreen = true,
     save_callback = function(content)
+      print("wrting to", template.path)
       Util.writeToFile(content, template.path, true)
       return true, string.format("%q saved successfully", template.name)
     end
@@ -130,7 +131,14 @@ function OrgCapture:templateEditor(template)
   input_dialog:addWidget(check_default_button)
 
   UIManager:show(input_dialog)
-  input_dialog:onShowKeyboard()
+
+  UIManager:nextTick(function()
+    local content = Util.readFromFile(template.path)
+    if content then
+      input_dialog:setInputText(content)
+    end
+    input_dialog:onShowKeyboard()
+  end)
 end
 
 function OrgCapture:listTemplates()
