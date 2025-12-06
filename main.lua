@@ -7,6 +7,7 @@ Org Captrue inside koreader
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
+local CheckButton = require("ui/widget/checkbutton")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local _ = require("gettext")
 local GS = G_reader_settings
@@ -14,6 +15,7 @@ local DataStorage = require("datastorage")
 local DocSettings = require("docsettings")
 local Util = require("util")
 local ffiUtil = require("ffi/util")
+local T = ffiUtil.template
 
 local OrgCapture = WidgetContainer:extend {
   name = "orgcapture",
@@ -25,6 +27,7 @@ local function default_setting()
     target = "inbox.org",
     folder = DataStorage:getFullDataDir() .. "/org",
     templates_folder = DataStorage:getFullDataDir() .. "/capture_templates",
+    default_capture_t = "default.orgcapture"
   }
 end
 
@@ -96,8 +99,42 @@ function OrgCapture:createDefaultTemplates()
   end
 end
 
+-- template is { name = "name.orgcapture", path = "/full/path/name.orgcapture" }
+function OrgCapture:templateEditor(template)
+  local input_dialog
+  local check_default_button
+
+  input_dialog = InputDialog:new {
+    title = T(_("Edit: %1"), template.name),
+    input = Util.readFromFile(template.path) or "",
+    allow_newline = true,
+    fullscreen = true,
+    save_callback = function(content)
+      Util.writeToFile(content, template.path, true)
+      return true, string.format("%q saved successfully", template.name)
+    end
+  }
+
+  check_default_button = CheckButton:new {
+    text = _("Set as the default captrue"),
+    checked = self.settings.default_capture_t == template.name,
+    parent = input_dialog,
+    callback = function()
+      self:saveLocalSetting("default_capture_t", template.name)
+    end,
+    hold_callback = function()
+      self:saveGlobalSetting("default_capture_t", template.name)
+    end
+  }
+
+  input_dialog:addWidget(check_default_button)
+
+  UIManager:show(input_dialog)
+  input_dialog:onShowKeyboard()
+end
+
 function OrgCapture:listTemplates()
-  local templates = {
+  local templates_menu = {
     {
       text = _("Templates Folder"),
       callback = function()
@@ -112,9 +149,27 @@ function OrgCapture:listTemplates()
     }
   }
 
+  local templates = {}
+  Util.findFiles(self.settings.templates_folder, function(fullpath, name)
+    table.insert(templates,
+      {
+        name = name,
+        path = ffiUtil.joinPath(self.settings.templates_folder, fullpath)
+      })
+  end)
 
+  for _k, t in pairs(templates) do
+    table.insert(templates_menu, {
+      text = _(t.name),
+      callback = function()
+        self:templateEditor(t)
+      end
+    })
+  end
 
-  return templates
+  -- TODO: at the bottom have a new template menu to add new template populated with the default template
+
+  return templates_menu
 end
 
 function OrgCapture:addToMainMenu(menu_items)
