@@ -9,12 +9,11 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local _ = require("gettext")
-local ffiUtil = require("ffi/util")
-local T = ffiUtil.template
 local GS = G_reader_settings
 local DataStorage = require("datastorage")
 local DocSettings = require("docsettings")
 local Util = require("util")
+local ffiUtil = require("ffi/util")
 
 local OrgCapture = WidgetContainer:extend {
   name = "orgcapture",
@@ -69,11 +68,31 @@ end
 
 function OrgCapture:init()
   self:loadSettings()
+  self:createDefaultTemplates()
 
   self.ui.menu:registerToMainMenu(self)
 
   if self.ui.highlight then
     self:addToHighlightDialog()
+  end
+end
+
+function OrgCapture:createDefaultTemplates()
+  if (self.settings.templates_folder == default_setting().templates_folder) then
+    if (not Util.pathExists(self.settings.templates_folder)) then
+      Util.makePath(self.settings.templates_folder)
+    end
+
+    if (Util.isEmptyDir(self.settings.templates_folder)) then
+      -- copy from "./templates/*" to self.settings.template_folder the captrue files
+      local templates_dir_src = ffiUtil.joinPath(self.path, "templates")
+      local templates_dir_des = self.settings.templates_folder
+
+      Util.findFiles(templates_dir_src, function(fullpath, filename)
+        fullpath = ffiUtil.joinPath(DataStorage:getFullDataDir(), fullpath)
+        ffiUtil.copyFile(fullpath, ffiUtil.joinPath(templates_dir_des, filename))
+      end, false)
+    end
   end
 end
 
@@ -86,11 +105,14 @@ function OrgCapture:listTemplates()
             self:saveLocalSetting("templates_folder", path)
           end,
           self.settings.templates_folder,
-          DataStorage:getFullDataDir() .. "/capture_templates",
+          default_setting().templates_folder,
           nil)
-      end
+      end,
+      separator = true
     }
   }
+
+
 
   return templates
 end

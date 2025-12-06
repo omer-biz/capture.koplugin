@@ -1,0 +1,13 @@
+* %C-%b
+:PROPERTIES:
+:BOOK: %b
+:AUTHOR: %A
+:PAGE: %c
+:CREATED: %D-%M
+:END:
+
+#+begin_quote
+%i
+#+end_quote
+
+

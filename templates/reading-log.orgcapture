@@ -1,0 +1,9 @@
+* %D — %T
+:PROPERTIES:
+:AUTHOR: %A
+:PAGE: %c
+:END:
+
+#+begin_quote
+%i
+#+end_quote
