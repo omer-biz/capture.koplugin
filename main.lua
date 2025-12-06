@@ -141,6 +141,7 @@ function OrgCapture:templateEditor(template)
   end)
 end
 
+-- FIX: new file are not being shown after their creation
 function OrgCapture:listTemplates()
   local templates_menu = {
     {
@@ -152,6 +153,40 @@ function OrgCapture:listTemplates()
           self.settings.templates_folder,
           default_setting().templates_folder,
           nil)
+      end,
+    },
+    {
+      text = _("New Template"),
+      callback = function()
+        local input_dialog
+        input_dialog = InputDialog:new {
+          title = _("File Name"),
+          input = "name.orgcapture",
+          buttons = {
+            {
+              {
+                text = _("Continue"),
+                callback = function()
+                  local filename = input_dialog:getInputValue()
+                  UIManager:close(input_dialog)
+                  -- TODO: trim and chedk if it's not empty
+                  self:templateEditor({
+                    name = input_dialog:getInputValue(),
+                    path = ffiUtil.joinPath(self.settings.templates_folder, filename)
+                  })
+                end
+              },
+              {
+                text = _("Cancel"),
+                callback = function()
+                  UIManager:close(input_dialog)
+                end
+              }
+            }
+          }
+        }
+        UIManager:show(input_dialog)
+        input_dialog:onShowKeyboard()
       end,
       separator = true
     }
@@ -174,8 +209,6 @@ function OrgCapture:listTemplates()
       end
     })
   end
-
-  -- TODO: at the bottom have a new template menu to add new template populated with the default template
 
   return templates_menu
 end
