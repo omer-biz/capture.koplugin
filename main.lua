@@ -17,8 +17,8 @@ local DocSettings = require("docsettings")
 local Util = require("util")
 
 local OrgCapture = WidgetContainer:extend {
-  name = "hello",
-  is_doc_only = false,
+  name = "orgcapture",
+  is_doc_only = true,
 }
 
 local function default_setting()
@@ -79,7 +79,7 @@ end
 function OrgCapture:addToMainMenu(menu_items)
   menu_items.org_capture = {
     text = _("Capture"),
-    sorting_hint = "more_tools",
+    sorting_hint = "tools",
     keep_menu_open = true,
     sub_item_table = {
       {
