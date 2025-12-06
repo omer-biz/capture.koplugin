@@ -23,7 +23,7 @@ local OrgCapture = WidgetContainer:extend {
 
 local function default_setting()
   return {
-    strategy = "Unified",
+    target = "inbox.org",
     folder = DataStorage:getFullDataDir() .. "/org"
   }
 end
@@ -95,35 +95,31 @@ function OrgCapture:addToMainMenu(menu_items)
         separator = true
       },
       {
-        text_func = function()
-          return T(_("Capture Strategy: %1"),
-            self.settings.strategy)
-        end,
-
+        text = _("Capture Target"),
         keep_menu_open = true,
-        sub_item_table = {
-          {
-            text = _("Unified"),
-            radio = true,
-            checked_func = function()
-              return self.settings.strategy == "Unified"
+        callback = function()
+          local FileManagerBookInfo = require("apps/filemanager/filemanagerbookinfo")
+          local input_dialog
+          input_dialog = InputDialog:new {
+            title = _("Capture target"),
+            input = self.settings.target,
+            save_callback = function(content)
+              self:saveLocalSetting("target", content)
+              return true, string.format("Saved: %q", self.ui.bookinfo:expandString(content))
             end,
-            callback = function()
-              self:saveSetting("strategy", "Unified")
-            end,
-          },
-          {
-            text = _("Per Book"),
-            radio = true,
-            keep_menu_open = true,
-            checked_func = function()
-              return self.settings.strategy == "Per Book"
-            end,
-            callback = function()
-              self:saveSetting("strategy", "Per Book")
-            end,
+            buttons = {
+              {
+                {
+                  text = _("Info"),
+                  callback = FileManagerBookInfo.expandString,
+                },
+              }
+            }
           }
-        }
+
+          UIManager:show(input_dialog)
+          input_dialog:onShowKeyboard()
+        end
       },
       {
         text = "Select Folder",
