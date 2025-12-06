@@ -24,7 +24,8 @@ local OrgCapture = WidgetContainer:extend {
 local function default_setting()
   return {
     target = "inbox.org",
-    folder = DataStorage:getFullDataDir() .. "/org"
+    folder = DataStorage:getFullDataDir() .. "/org",
+    templates_folder = DataStorage:getFullDataDir() .. "/capture_templates",
   }
 end
 
@@ -76,6 +77,24 @@ function OrgCapture:init()
   end
 end
 
+function OrgCapture:listTemplates()
+  local templates = {
+    {
+      text = _("Templates Folder"),
+      callback = function()
+        filemanagerutil.showChooseDialog("capture templates folder", function(path)
+            self:saveLocalSetting("templates_folder", path)
+          end,
+          self.settings.templates_folder,
+          DataStorage:getFullDataDir() .. "/capture_templates",
+          nil)
+      end
+    }
+  }
+
+  return templates
+end
+
 function OrgCapture:addToMainMenu(menu_items)
   menu_items.org_capture = {
     text = _("Capture"),
@@ -89,9 +108,7 @@ function OrgCapture:addToMainMenu(menu_items)
       {
         text = _("Capture Templates"),
         keep_menu_open = true,
-        callback = function()
-          print("TODO: list capture templats as well as allowing to edit and add new ones")
-        end,
+        sub_item_table = self:listTemplates(),
         separator = true
       },
       {
