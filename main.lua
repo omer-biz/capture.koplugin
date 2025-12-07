@@ -175,9 +175,6 @@ function OrgCapture:listTemplates()
         callback = function()
           self:templateEditor(templ)
         end,
-        hold_callback = function()
-          print("TODO: delete the capture template")
-        end
       })
     end
 
