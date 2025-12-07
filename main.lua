@@ -7,6 +7,7 @@ Org Captrue inside koreader
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
+local KeyValuePage = require("ui/widget/keyvaluepage")
 local CheckButton = require("ui/widget/checkbutton")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local _ = require("gettext")
@@ -100,7 +101,7 @@ function OrgCapture:createDefaultTemplates()
 end
 
 -- template is { name = "name.orgcapture", path = "/full/path/name.orgcapture" }
-function OrgCapture:templateEditor(template)
+function OrgCapture:templateEditor(template, closing_callback)
   local input_dialog
   local check_default_button
 
@@ -110,9 +111,14 @@ function OrgCapture:templateEditor(template)
     allow_newline = true,
     fullscreen = true,
     save_callback = function(content)
-      print("wrting to", template.path)
       Util.writeToFile(content, template.path, true)
       return true, string.format("%q saved successfully", template.name)
+    end,
+    close_callback = function()
+      -- INFO: This is a hack to redraw KeyValuePage with the newly created template
+      if template.name ~= "" and closing_callback then
+        closing_callback()
+      end
     end
   }
 
@@ -141,76 +147,102 @@ function OrgCapture:templateEditor(template)
   end)
 end
 
--- FIX: new file are not being shown after their creation
-function OrgCapture:listTemplates()
-  local templates_menu = {
-    {
-      text = _("Templates Folder"),
-      callback = function()
-        filemanagerutil.showChooseDialog("capture templates folder", function(path)
-            self:saveLocalSetting("templates_folder", path)
-          end,
-          self.settings.templates_folder,
-          default_setting().templates_folder,
-          nil)
-      end,
-    },
-    {
-      text = _("New Template"),
-      callback = function()
-        local input_dialog
-        input_dialog = InputDialog:new {
-          title = _("File Name"),
-          input = "name.orgcapture",
-          buttons = {
-            {
-              {
-                text = _("Continue"),
-                callback = function()
-                  local filename = input_dialog:getInputValue()
-                  UIManager:close(input_dialog)
-                  -- TODO: trim and chedk if it's not empty
-                  self:templateEditor({
-                    name = input_dialog:getInputValue(),
-                    path = ffiUtil.joinPath(self.settings.templates_folder, filename)
-                  })
-                end
-              },
-              {
-                text = _("Cancel"),
-                callback = function()
-                  UIManager:close(input_dialog)
-                end
-              }
-            }
-          }
-        }
-        UIManager:show(input_dialog)
-        input_dialog:onShowKeyboard()
-      end,
-      separator = true
-    }
-  }
-
+local function getTemplatesFromFS(templates_folder)
   local templates = {}
-  Util.findFiles(self.settings.templates_folder, function(fullpath, name)
+  Util.findFiles(templates_folder, function(path, name)
     table.insert(templates,
       {
         name = name,
-        path = ffiUtil.joinPath(self.settings.templates_folder, fullpath)
+        path = ffiUtil.joinPath(templates_folder, path)
       })
   end)
+  return templates
+end
 
-  for _k, t in pairs(templates) do
-    table.insert(templates_menu, {
-      text = _(t.name),
-      callback = function()
-        self:templateEditor(t)
-      end
-    })
+function OrgCapture:listTemplates()
+  local function newTemplate() end
+
+  local function buildTemplates()
+    local templates = getTemplatesFromFS(self.settings.templates_folder)
+    local templates_list = {}
+
+    for _k, t in ipairs(templates) do
+      local templ = t
+      table.insert(templates_list, {
+        _(templ.name),
+        "",
+        callback = function()
+          self:templateEditor(templ)
+        end,
+        hold_callback = function()
+          print("TODO: delete the capture template")
+        end
+      })
+    end
+
+    table.insert(templates_list, "--------------")
+    table.insert(templates_list, { _("Add new template"), "", callback = newTemplate })
+
+    return templates_list
   end
 
-  return templates_menu
+
+  function newTemplate()
+    local input_dialog
+    input_dialog = InputDialog:new {
+      title = _("File Name"),
+      input = "name.orgcapture",
+      buttons = {
+        {
+          {
+            text = _("Continue"),
+            callback = function()
+              local filename = input_dialog:getInputValue()
+              UIManager:close(input_dialog)
+
+              filename = filename:gsub("^%s+", ""):gsub("%s+$", "")
+              if filename == "" then return end
+
+              self:templateEditor({
+                name = filename,
+                path = ffiUtil.joinPath(self.settings.templates_folder, filename)
+              }, function()
+                -- There must be a better way to refresh the list kvs
+                if self.templates_page then
+                  UIManager:close(self.templates_page)
+                end
+                self.templates_page = KeyValuePage:new {
+                  title = _("Capture Templates"),
+                  kv_pairs = buildTemplates()
+                }
+
+                UIManager:show(self.templates_page)
+              end)
+            end
+
+          },
+          {
+            text = _("Cancel"),
+            callback = function()
+              UIManager:close(input_dialog)
+            end
+          }
+        }
+      }
+    }
+
+    UIManager:show(input_dialog)
+    UIManager:nextTick(function()
+      input_dialog:onShowKeyboard()
+    end)
+  end
+
+  self.templates_page = KeyValuePage:new {
+    title = _("Capture Templates"),
+    kv_pairs = buildTemplates()
+  }
+
+  UIManager:show(self.templates_page)
 end
 
 function OrgCapture:addToMainMenu(menu_items)
@@ -226,8 +258,10 @@ function OrgCapture:addToMainMenu(menu_items)
       {
         text = _("Capture Templates"),
         keep_menu_open = true,
-        sub_item_table = self:listTemplates(),
-        separator = true
+        callback = function()
+          self:listTemplates()
+        end,
+        separator = true,
       },
       {
         text = _("Capture Target"),
@@ -269,6 +303,17 @@ function OrgCapture:addToMainMenu(menu_items)
             DataStorage:getFullDataDir() .. "/org",
             nil)
         end
+      },
+      {
+        text = _("Templates Folder"),
+        callback = function()
+          filemanagerutil.showChooseDialog("capture templates folder", function(path)
+              self:saveLocalSetting("templates_folder", path)
+            end,
+            self.settings.templates_folder,
+            default_setting().templates_folder,
+            nil)
+        end,
       }
     }
   }
