@@ -30,3 +30,16 @@ This plugin allows you to:
 3. Choose **Capture (Org)**.
 4. Edit or confirm your capture entry.
 5. The plugin appends it to the configured Org file.
+
+By default your captures will go into `koreader/org/inbox.org`.
+To configure the plugin goto `tools -> Capture` usaually on the second page.
+
+## Demo
+
+[main](demo/main.mp4)
+
+Main Workflow
+
+[overview](demo/overview.mp4)
+
+Overview
