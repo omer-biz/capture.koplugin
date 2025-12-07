@@ -284,7 +284,6 @@ Enjoy seamless note-taking and knowledge management!
         text = _("Capture Target"),
         keep_menu_open = true,
         callback = function()
-          local FileManagerBookInfo = require("apps/filemanager/filemanagerbookinfo")
           local input_dialog
           input_dialog = InputDialog:new {
             title = _("Capture target"),
@@ -297,7 +296,33 @@ Enjoy seamless note-taking and knowledge management!
               {
                 {
                   text = _("Info"),
-                  callback = FileManagerBookInfo.expandString,
+                  callback = function()
+                    UIManager:show(InfoMessage:new {
+                      text = _([[
+%i highlighted text
+%T title
+%A author
+%S series
+%t total pages
+%c current page
+%l pages left in chapter
+%p book percentage read
+%H time left in book
+%C chapter title
+%P chapter percentage read
+%h time left in chapter
+%F file path
+%f file name
+%b battery level
+%B battery symbol
+%r separator
+%D current date (yyyy-mm-dd)
+%d current date (mm-dd)
+%m current time (hh:mm)
+%M current time (hh-mm-ss)]]),
+                      monospace_font = true,
+                    })
+                  end
                 },
               }
             }
