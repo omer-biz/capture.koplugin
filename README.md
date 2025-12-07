@@ -40,7 +40,6 @@ To configure the plugin goto `tools -> Capture` usaually on the second page.
 
 Main Workflow
 
-[overview](demo/overview.gif)
 [![Overview](demo/overview.gif)](demo/overview.gif)
 
 Overview
