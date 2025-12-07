@@ -7,6 +7,7 @@ Org Captrue inside koreader
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
+local InfoMessage = require("ui/widget/infomessage")
 local KeyValuePage = require("ui/widget/keyvaluepage")
 local CheckButton = require("ui/widget/checkbutton")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
@@ -254,6 +255,22 @@ function OrgCapture:addToMainMenu(menu_items)
       {
         text = _("About Capture"),
         keep_menu_open = true,
+        callback = function()
+          local msg = [[
+KOReader Org-Capture Plugin
+Version: 1.0
+
+Capture highlights from KOReader into Org-mode files.
+Supports templates, and dynamic target paths.
+
+Author: Omer A. Adem
+GitHub: https://github.com/omer-biz/capture.koplugin
+
+Enjoy seamless note-taking and knowledge management!
+]]
+
+          UIManager:show(InfoMessage:new { text = msg })
+        end
       },
       {
         text = _("Capture Templates"),
