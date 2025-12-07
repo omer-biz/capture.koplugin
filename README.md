@@ -36,10 +36,10 @@ To configure the plugin goto `tools -> Capture` usaually on the second page.
 
 ## Demo
 
-[main](demo/main.mp4)
+[main](demo/main.gif)
 
 Main Workflow
 
-[overview](demo/overview.mp4)
+[overview](demo/overview.gif)
 
 Overview
