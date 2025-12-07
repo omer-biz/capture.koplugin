@@ -306,6 +306,7 @@ function OrgCapture:addToMainMenu(menu_items)
       },
       {
         text = _("Templates Folder"),
+        keep_menu_open = true,
         callback = function()
           filemanagerutil.showChooseDialog("capture templates folder", function(path)
               self:saveLocalSetting("templates_folder", path)
@@ -325,38 +326,47 @@ function OrgCapture:addToHighlightDialog()
       text = _("Capture (Org)"),
       callback = function()
         local selected_text = this.selected_text.text
-        local template = string.format([[
-*** %s
-:PROPERTIES:
-:CREATED: %s
-:END:
 
-#+begin_quote
-%s
-#+end_quote
+        local default_template = ffiUtil.joinPath(
+          ffiUtil.joinPath(DataStorage:getFullDataDir(),
+            self.settings.templates_folder),
+          self.settings.default_capture_t)
 
-]],
-          selected_text:sub(1, 10),
-          os.date("!%Y-%m-%dT%H:%M:%SZ"),
-          selected_text
-        )
+        local template = Util.readFromFile(default_template)
+        local highlight_replace = template:gsub("%%i", selected_text)
+        local expanded = self.ui.bookinfo:expandString(highlight_replace)
 
         local dialog
         dialog = InputDialog:new {
           title = _("Org Capture"),
-          input = template,
+          input = expanded,
           allow_newline = true,
           fullscreen = true,
           cursor_at_end = true,
           add_nav_bar = true,
-          save_callback = function(content, closing)
-            if closing then
-              UIManager:nextTick(
-              -- Stuff to do when InputDialog is closed, if anything.
-              )
+          save_callback = function(content)
+            local expanded_target = self.ui.bookinfo:expandString(self.settings.target)
+            expanded_target = expanded_target:gsub("[/\\:*?\"<>|]", "-")
+            local base_dir = ffiUtil.joinPath(
+              DataStorage:getFullDataDir(),
+              self.settings.folder
+            )
+            local fullpath = ffiUtil.joinPath(base_dir, expanded_target)
+
+            if not Util.fileExists(fullpath) then
+              Util.makePath(base_dir)
+              Util.writeToFile(content, fullpath, true)
+              return true, "Highlight captured created successfully"
             end
-            -- TODO: write `content` to org file
-            return true, "Highlight captured sucessfully"
+
+            local capture_file = io.open(fullpath, "a+")
+            if not capture_file then
+              return false, "Coudn't open capture file"
+            end
+            capture_file:write("\n", content, "\n")
+            capture_file:close()
+
+            return true, "Highlight captured updated successfully"
           end
         }
 
