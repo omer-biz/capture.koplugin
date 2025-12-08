@@ -19,6 +19,7 @@ local Util = require("util")
 local ffiUtil = require("ffi/util")
 local T = ffiUtil.template
 local FileManagerBookInfo = require("apps/filemanager/filemanagerbookinfo")
+local Notification = require("ui/widget/notification")
 
 local OrgCapture = WidgetContainer:extend {
   name = "orgcapture",
@@ -30,7 +31,8 @@ local function default_setting()
     target = "inbox.org",
     folder = DataStorage:getFullDataDir() .. "/org",
     templates_folder = DataStorage:getFullDataDir() .. "/capture_templates",
-    default_capture_t = "default.orgcapture"
+    default_capture_t = "default.orgcapture",
+    save_highlight = false, -- save the captured text as highlight too
   }
 end
 
@@ -363,6 +365,29 @@ Enjoy seamless note-taking and knowledge management!
             default_setting().templates_folder,
             nil)
         end,
+      },
+      {
+        text = _("Save as highlight"),
+        keep_menu_open = true,
+        checked_func = function()
+          return self.settings.save_highlight
+        end,
+        callback = function()
+          self:saveLocalSetting("save_highlight", not self.settings.save_highlight)
+          return true
+        end,
+        hold_callback = function()
+          local new_value = not self.settings.save_highlight
+          self:saveGlobalSetting("save_highlight", new_value)
+
+          local message = new_value
+              and "Highlights for all books will be saved"
+              or "Highlights for all books will not be saved"
+
+          UIManager:show(Notification:new {
+            text = T(_(message)),
+          })
+        end
       }
     }
   }
@@ -394,7 +419,6 @@ function OrgCapture:addToHighlightDialog()
           add_nav_bar = true,
           save_callback = function(content)
             local expanded_target = self.ui.bookinfo:expandString(self.settings.target)
-            expanded_target = expanded_target:gsub("[/\\:*?\"<>|]", "-")
             local base_dir = ffiUtil.joinPath(
               DataStorage:getFullDataDir(),
               self.settings.folder
@@ -404,6 +428,9 @@ function OrgCapture:addToHighlightDialog()
             if not Util.fileExists(fullpath) then
               Util.makePath(base_dir)
               Util.writeToFile(content, fullpath, true)
+
+              this:saveHighlight(true)
+
               return true, "Highlight captured created successfully"
             end
 
@@ -413,6 +440,12 @@ function OrgCapture:addToHighlightDialog()
             end
             capture_file:write("\n", content, "\n")
             capture_file:close()
+
+            -- TODO: if there was a note add that too
+            -- This would need the use of this:addNote()
+            -- But we have to figure out a way to do that without
+            -- the UI popup
+            this:saveHighlight(true)
 
             return true, "Highlight captured updated successfully"
           end
