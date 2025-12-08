@@ -18,6 +18,7 @@ local DocSettings = require("docsettings")
 local Util = require("util")
 local ffiUtil = require("ffi/util")
 local T = ffiUtil.template
+local FileManagerBookInfo = require("apps/filemanager/filemanagerbookinfo")
 
 local OrgCapture = WidgetContainer:extend {
   name = "orgcapture",
@@ -120,7 +121,41 @@ function OrgCapture:templateEditor(template, closing_callback)
       if template.name ~= "" and closing_callback then
         closing_callback()
       end
-    end
+    end,
+    buttons = {
+      {
+        {
+          text = _("Info"),
+          callback = function()
+            UIManager:show(InfoMessage:new {
+              text = _([[
+%i highlighted text
+%T title
+%A author
+%S series
+%t total pages
+%c current page
+%l pages left in chapter
+%p book percentage read
+%H time left in book
+%C chapter title
+%P chapter percentage read
+%h time left in chapter
+%F file path
+%f file name
+%b battery level
+%B battery symbol
+%r separator
+%D current date (yyyy-mm-dd)
+%d current date (mm-dd)
+%m current time (hh:mm)
+%M current time (hh-mm-ss)]]),
+              monospace_font = true,
+            })
+          end
+        }
+      }
+    }
   }
 
   check_default_button = CheckButton:new {
@@ -293,33 +328,7 @@ Enjoy seamless note-taking and knowledge management!
               {
                 {
                   text = _("Info"),
-                  callback = function()
-                    UIManager:show(InfoMessage:new {
-                      text = _([[
-%i highlighted text
-%T title
-%A author
-%S series
-%t total pages
-%c current page
-%l pages left in chapter
-%p book percentage read
-%H time left in book
-%C chapter title
-%P chapter percentage read
-%h time left in chapter
-%F file path
-%f file name
-%b battery level
-%B battery symbol
-%r separator
-%D current date (yyyy-mm-dd)
-%d current date (mm-dd)
-%m current time (hh:mm)
-%M current time (hh-mm-ss)]]),
-                      monospace_font = true,
-                    })
-                  end
+                  callback = FileManagerBookInfo.expandString,
                 },
               }
             }
