@@ -39,7 +39,7 @@ function OrgCapture:loadSettings()
 
   local global_settings = GS:readSetting("orgcapture")
   if global_settings ~= nil then
-    Util.tableMerge(self.settings, GS:readSetting())
+    Util.tableMerge(self.settings, global_settings)
   end
 
   local doc_settings = DocSettings:open(self.ui.document.file)
