@@ -421,9 +421,38 @@ function OrgCapture:addToHighlightDialog()
       callback = function()
         local selected_text = this.selected_text.text
 
-        local default_template = ffiUtil.joinPath(
-          ffiUtil.joinPath(DataStorage:getFullDataDir(),
-            self.settings.templates_folder),
+        if self.settings.default_capture_t == nil then
+          UIManager:show(Notification:new {
+            text = T(_("You didn't select default template")),
+          })
+          return
+        end
+
+        if self.settings.templates_folder == nil then
+          UIManager:show(Notification:new {
+            text = T(_("You didnt' select templates folder")),
+          })
+          return
+        end
+
+        local templates_path = ffiUtil.joinPath(DataStorage:getFullDataDir(),
+          self.settings.templates_folder)
+
+        if Util.pathExists(templates_path) then
+          UIManager:show(Notification:new {
+            text = T(_("Selected templates folder doesn't exist")),
+          })
+          return
+        end
+
+        if Util.isEmptyDir(templates_path) then
+          UIManager:show(Notification:new {
+            text = T(_("Selected templates folder is empty")),
+          })
+          return
+        end
+
+        local default_template = ffiUtil.joinPath(templates_path,
           self.settings.default_capture_t)
 
         local template = Util.readFromFile(default_template)
