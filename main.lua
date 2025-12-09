@@ -40,9 +40,9 @@ function OrgCapture:loadSettings()
   if not self.ui.document or not self.ui.document.file then return end
   self.settings = default_setting()
 
-  local global_settings = GS:readSetting("orgcapture")
-  if global_settings ~= nil then
-    Util.tableMerge(self.settings, global_settings)
+  self.global_settings = GS:readSetting("orgcapture")
+  if self.global_settings ~= nil then
+    Util.tableMerge(self.settings, self.global_settings)
   end
 
   local doc_settings = DocSettings:open(self.ui.document.file)
@@ -168,7 +168,16 @@ function OrgCapture:templateEditor(template, closing_callback)
       self:saveLocalSetting("default_capture_t", template.name)
     end,
     hold_callback = function()
-      self:saveGlobalSetting("default_capture_t", template.name)
+      local new_value = not self.global_settings.default_capture_t
+      self:saveGlobalSetting("default_capture_t", new_value)
+
+      local message = new_value
+          and "Saved as a global capture"
+          or "Removed as a global capture"
+
+      UIManager:show(Notification:new {
+        text = T(_(message)),
+      })
     end
   }
 
