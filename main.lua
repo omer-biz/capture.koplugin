@@ -9,7 +9,7 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InputDialog = require("ui/widget/inputdialog")
 local InfoMessage = require("ui/widget/infomessage")
 local KeyValuePage = require("ui/widget/keyvaluepage")
-local CheckButton = require("ui/widget/checkbutton")
+local ConfirmBox = require("ui/widget/confirmbox")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local _ = require("gettext")
 local GS = G_reader_settings
@@ -66,7 +66,6 @@ function OrgCapture:saveLocalSetting(key, value)
 end
 
 function OrgCapture:saveGlobalSetting(key, value)
-  self.settings[key] = value
   local saved_global = GS:readSetting("orgcapture") or {}
 
   saved_global[key] = value
@@ -107,13 +106,14 @@ end
 -- template is { name = "name.orgcapture", path = "/full/path/name.orgcapture" }
 function OrgCapture:templateEditor(template, closing_callback)
   local input_dialog
-  local check_default_button
 
   input_dialog = InputDialog:new {
     title = T(_("Edit: %1"), template.name),
     input = "",
     allow_newline = true,
     fullscreen = true,
+    cursor_at_end = true,
+    add_nav_bar = true,
     save_callback = function(content)
       Util.writeToFile(content, template.path, true)
       return true, string.format("%q saved successfully", template.name)
@@ -160,29 +160,6 @@ function OrgCapture:templateEditor(template, closing_callback)
     }
   }
 
-  check_default_button = CheckButton:new {
-    text = _("Set as the default captrue"),
-    checked = self.settings.default_capture_t == template.name,
-    parent = input_dialog,
-    callback = function()
-      self:saveLocalSetting("default_capture_t", template.name)
-    end,
-    hold_callback = function()
-      local new_value = not self.global_settings.default_capture_t
-      self:saveGlobalSetting("default_capture_t", new_value)
-
-      local message = new_value
-          and "Saved as a global capture"
-          or "Removed as a global capture"
-
-      UIManager:show(Notification:new {
-        text = T(_(message)),
-      })
-    end
-  }
-
-  input_dialog:addWidget(check_default_button)
-
   UIManager:show(input_dialog)
 
   UIManager:nextTick(function()
@@ -208,6 +185,8 @@ end
 
 function OrgCapture:listTemplates()
   local function newTemplate() end
+  local function refreshTemplatesKV() end
+
 
   local function buildTemplates()
     local templates = getTemplatesFromFS(self.settings.templates_folder)
@@ -216,23 +195,46 @@ function OrgCapture:listTemplates()
     local default_template = self.settings.default_capture_t
     for _k, t in ipairs(templates) do
       local templ = t
+
+      local default_string = (default_template == templ.name and "default" or "") ..
+          " " .. (self.global_settings.default_capture_t == templ.name and "(global default)" or "")
+
       table.insert(templates_list, {
         _(templ.name),
-        _(default_template == templ.name and "default" or ""),
+        _(default_string),
         callback = function()
-          self:templateEditor(templ, function()
-            -- There must be a better way to refresh the list kvs
-            if self.templates_page then
-              UIManager:close(self.templates_page)
-            end
-            self.templates_page = KeyValuePage:new {
-              title = _("Capture Templates"),
-              kv_pairs = buildTemplates()
+          self:templateEditor(templ)
+        end,
+        hold_callback = function()
+          UIManager:show(ConfirmBox:new {
+            text = _("Make Default Capture Template?"),
+            ok_text = _("Yes"),
+            ok_callback = function()
+              self:saveLocalSetting("default_capture_t", templ.name)
+
+              UIManager:show(Notification:new {
+                text = T(_("Saved")),
+              })
+              refreshTemplatesKV()
+            end,
+            other_buttons = {
+              {
+                {
+                  text = _("Save Global"),
+                  callback = function()
+                    self:saveGlobalSetting("default_capture_t", templ.name)
+
+                    UIManager:show(Notification:new {
+                      text = T(_("Saved Globally")),
+                    })
+                    refreshTemplatesKV()
+                  end
+                }
+              }
             }
 
-            UIManager:show(self.templates_page)
-          end)
-        end,
+          })
+        end
       })
     end
 
@@ -242,6 +244,19 @@ function OrgCapture:listTemplates()
     return templates_list
   end
 
+  function refreshTemplatesKV()
+    print("I'm being called")
+    -- There must be a better way to refresh the list kvs
+    if self.templates_page then
+      UIManager:close(self.templates_page)
+    end
+    self.templates_page = KeyValuePage:new {
+      title = _("Capture Templates (Press and hold to set default)"),
+      kv_pairs = buildTemplates()
+    }
+
+    UIManager:show(self.templates_page)
+  end
 
   function newTemplate()
     local input_dialog
@@ -262,20 +277,8 @@ function OrgCapture:listTemplates()
               self:templateEditor({
                 name = filename,
                 path = ffiUtil.joinPath(self.settings.templates_folder, filename)
-              }, function()
-                -- There must be a better way to refresh the list kvs
-                if self.templates_page then
-                  UIManager:close(self.templates_page)
-                end
-                self.templates_page = KeyValuePage:new {
-                  title = _("Capture Templates"),
-                  kv_pairs = buildTemplates()
-                }
-
-                UIManager:show(self.templates_page)
-              end)
+              }, refreshTemplatesKV)
             end
-
           },
           {
             text = _("Cancel"),
@@ -294,7 +297,7 @@ function OrgCapture:listTemplates()
   end
 
   self.templates_page = KeyValuePage:new {
-    title = _("Capture Templates"),
+    title = _("Capture Templates (Press and hold to set default)"),
     kv_pairs = buildTemplates()
   }
 
