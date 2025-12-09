@@ -120,7 +120,7 @@ function OrgCapture:templateEditor(template, closing_callback)
     end,
     close_callback = function()
       -- INFO: This is a hack to redraw KeyValuePage with the newly created template
-      if template.name ~= "" and closing_callback then
+      if closing_callback then
         closing_callback()
       end
     end,
@@ -204,13 +204,25 @@ function OrgCapture:listTemplates()
     local templates = getTemplatesFromFS(self.settings.templates_folder)
     local templates_list = {}
 
+    local default_template = self.settings.default_capture_t
     for _k, t in ipairs(templates) do
       local templ = t
       table.insert(templates_list, {
         _(templ.name),
-        "",
+        _(default_template == templ.name and "default" or ""),
         callback = function()
-          self:templateEditor(templ)
+          self:templateEditor(templ, function()
+            -- There must be a better way to refresh the list kvs
+            if self.templates_page then
+              UIManager:close(self.templates_page)
+            end
+            self.templates_page = KeyValuePage:new {
+              title = _("Capture Templates"),
+              kv_pairs = buildTemplates()
+            }
+
+            UIManager:show(self.templates_page)
+          end)
         end,
       })
     end
